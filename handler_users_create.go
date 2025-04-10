@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/drogovski/chirpy/internal/auth"
 	"github.com/drogovski/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -18,7 +19,8 @@ type User struct {
 
 func (ac *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -29,10 +31,19 @@ func (ac *apiConfig) handlerUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := database.New(ac.db)
-	user, err := q.CreateUser(r.Context(), params.Email)
+	hashedPassword, err := auth.HashPassword(params.Password)
 	if err != nil {
-		respondWithError(w, 400, "Couldn't create new user", err)
+		respondWithError(w, http.StatusInternalServerError, err.Error(), err)
+		return
+	}
+
+	q := database.New(ac.db)
+	user, err := q.CreateUser(r.Context(), database.CreateUserParams{
+		Email:          params.Email,
+		HashedPassword: hashedPassword,
+	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create new user", err)
 		return
 	}
 
