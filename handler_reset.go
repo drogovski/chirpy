@@ -19,7 +19,7 @@ func (ac *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := database.New(ac.db)
-	err := q.DeleteAllUsers(r.Context())
+	err := q.Reset(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't reset the user table", err)
 		return
