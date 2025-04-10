@@ -1,10 +1,31 @@
 package main
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/drogovski/chirpy/internal/database"
+)
 
 func (ac *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	ac.fileserverHits.Store(0)
-	w.Write([]byte("Hits reset to 0"))
+	type respVals struct {
+		Message string `json:"message"`
+	}
+
+	if ac.platform != "dev" {
+		respondWithError(w, http.StatusForbidden, "Couldn't reset the user table",
+			fmt.Errorf("you cannot reset user table on not dev enviroment"))
+		return
+	}
+
+	q := database.New(ac.db)
+	err := q.DeleteAllUsers(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't reset the user table", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, respVals{
+		Message: "The table was reset successfully",
+	})
 }
