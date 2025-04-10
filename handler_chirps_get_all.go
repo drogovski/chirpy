@@ -4,27 +4,51 @@ import (
 	"net/http"
 
 	"github.com/drogovski/chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
-func (ac *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request) {
-	q := database.New(ac.db)
-	chirps, err := q.GetChirps(r.Context())
+func (ac *apiConfig) handlerChirpsGet(w http.ResponseWriter, r *http.Request) {
+	chirpIdString := r.PathValue("id")
+	chirpID, err := uuid.Parse(chirpIdString)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't get chirps from db.", err)
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID", err)
 		return
 	}
 
-	chirpsToJson := []Chirp{}
+	q := database.New(ac.db)
+	chirp, err := q.GetChirp(r.Context(), chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Couldn't get chirp with this id.", err)
+		return
+	}
 
-	for _, chirp := range chirps {
-		chirpsToJson = append(chirpsToJson, Chirp{
-			ID:        chirp.ID,
-			CreatedAt: chirp.CreatedAt,
-			UpdatedAt: chirp.UpdatedAt,
-			Body:      chirp.Body,
-			UserID:    chirp.UserID,
+	respondWithJSON(w, http.StatusOK, Chirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	})
+}
+
+func (ac *apiConfig) handlerChirpsRetrieve(w http.ResponseWriter, r *http.Request) {
+	q := database.New(ac.db)
+	dbChirps, err := q.GetChirps(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve chirps", err)
+		return
+	}
+
+	chirps := []Chirp{}
+	for _, dbChirp := range dbChirps {
+		chirps = append(chirps, Chirp{
+			ID:        dbChirp.ID,
+			CreatedAt: dbChirp.CreatedAt,
+			UpdatedAt: dbChirp.UpdatedAt,
+			Body:      dbChirp.Body,
+			UserID:    dbChirp.UserID,
 		})
 	}
 
-	respondWithJSON(w, http.StatusOK, chirpsToJson)
+	respondWithJSON(w, http.StatusOK, chirps)
 }
