@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"errors"
+	"net/http"
 	"testing"
 	"time"
 
@@ -107,6 +109,70 @@ func TestCheckJWTTokenGeneration(t *testing.T) {
 			_, err := ValidateJWT(tt.token, tt.validationSecret)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateJWT() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetBearerToken(t *testing.T) {
+	header1 := http.Header{}
+	header1.Add("Authorization", "Bearer somelongtoken")
+	header2 := http.Header{}
+	header3 := http.Header{}
+	header3.Add("Authorization", "Some token")
+	header4 := http.Header{}
+	header4.Add("Authorization", "Bearer")
+
+	tests := []struct {
+		name    string
+		header  http.Header
+		want    string
+		wantErr error
+	}{
+		{
+			name:    "Proper header format",
+			header:  header1,
+			want:    "somelongtoken",
+			wantErr: nil,
+		},
+		{
+			name:    "No authorization header",
+			header:  header2,
+			want:    "",
+			wantErr: errors.New("the request doesn't have authorization header"),
+		},
+		{
+			name:    "Authorization header with wrong format",
+			header:  header3,
+			want:    "",
+			wantErr: errors.New("provided token has wrong format"),
+		},
+		{
+			name:    "Authorization header with correct prefix but without token",
+			header:  header4,
+			want:    "",
+			wantErr: errors.New("there was no token value: Bearer <token>"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetBearerToken(tt.header)
+
+			if tt.wantErr != nil && err == nil {
+				t.Errorf("GetBearerToken() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr == nil && err != nil {
+				t.Errorf("GetBearerToken() unexpected error: %v", err)
+			}
+
+			if tt.wantErr != nil && err.Error() != tt.wantErr.Error() {
+				t.Errorf("expected error %v, got %v", tt.wantErr, err)
+			}
+
+			if got != tt.want {
+				t.Errorf("expected result %s, got %s", tt.want, got)
 			}
 		})
 	}
