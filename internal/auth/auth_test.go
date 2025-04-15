@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -68,10 +67,7 @@ func TestCheckJWTTokenGeneration(t *testing.T) {
 	userID := uuid.New()
 	secret1 := "secret1"
 	secret2 := "secret2"
-	durationHour := 1 * time.Hour
-	durationHourAgo := -1 * time.Hour
-	correctToken, _ := MakeJWT(userID, secret1, durationHour)
-	expiredToken, _ := MakeJWT(userID, secret1, durationHourAgo)
+	correctToken, _ := MakeJWT(userID, secret1)
 
 	tests := []struct {
 		name             string
@@ -92,13 +88,6 @@ func TestCheckJWTTokenGeneration(t *testing.T) {
 			userID:           userID,
 			token:            correctToken,
 			validationSecret: secret2,
-			wantErr:          true,
-		},
-		{
-			name:             "Correct secret and time expired",
-			userID:           userID,
-			token:            expiredToken,
-			validationSecret: secret1,
 			wantErr:          true,
 		},
 	}

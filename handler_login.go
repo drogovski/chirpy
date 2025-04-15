@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -12,16 +14,16 @@ import (
 
 func (ac *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Password         string `json:"password"`
-		Email            string `json:"email"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	type response struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-		Token     string    `json:"token"`
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -45,24 +47,45 @@ func (ac *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, ac.jwtSecret, prepareExpirationTime(params.ExpiresInSeconds))
+	token, err := auth.MakeJWT(user.ID, ac.jwtSecret)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't generate JWT token", err)
 		return
 	}
 
+	refreshToken, err := prepareRefreshToken(user.ID, r.Context(), ac.db)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't generate refresh token", err)
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, response{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     token,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        token,
+		RefreshToken: refreshToken,
 	})
 }
 
-func prepareExpirationTime(expirationTimeInSeconds int) time.Duration {
-	if expirationTimeInSeconds <= 0 || expirationTimeInSeconds > 3600 {
-		return 1 * time.Hour
+func prepareRefreshToken(userID uuid.UUID, context context.Context, db *sql.DB) (string, error) {
+	const refreshTokenDuration = 60 * 24 * time.Hour
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		return "", err
 	}
-	return time.Duration(expirationTimeInSeconds) * time.Second
+
+	q := database.New(db)
+	savedToken, err := q.CreateRefreshToken(context, database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		UserID:    userID,
+		ExpiresAt: time.Now().Add(refreshTokenDuration),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return savedToken.Token, nil
 }
