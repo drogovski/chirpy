@@ -63,41 +63,51 @@ func TestCheckPasswordHash(t *testing.T) {
 	}
 }
 
-func TestCheckJWTTokenGeneration(t *testing.T) {
+func TestValidateJWT(t *testing.T) {
 	userID := uuid.New()
-	secret1 := "secret1"
-	secret2 := "secret2"
-	correctToken, _ := MakeJWT(userID, secret1)
+	validSecret := "secret"
+	invalidSecret := "someWrongSecret"
+	validToken, _ := MakeJWT(userID, validSecret)
 
 	tests := []struct {
-		name             string
-		userID           uuid.UUID
-		token            string
-		validationSecret string
-		wantErr          bool
+		name        string
+		tokenString string
+		tokenSecret string
+		wantUserID  uuid.UUID
+		wantErr     bool
 	}{
 		{
-			name:             "Correct secret and time not expired",
-			userID:           userID,
-			token:            correctToken,
-			validationSecret: secret1,
-			wantErr:          false,
+			name:        "Valid token",
+			tokenString: validToken,
+			tokenSecret: validSecret,
+			wantUserID:  userID,
+			wantErr:     false,
 		},
 		{
-			name:             "Wrong secret and time not expired",
-			userID:           userID,
-			token:            correctToken,
-			validationSecret: secret2,
-			wantErr:          true,
+			name:        "Invalid token",
+			tokenString: "some.invalid.token",
+			tokenSecret: validSecret,
+			wantUserID:  uuid.Nil,
+			wantErr:     true,
+		},
+		{
+			name:        "Wrong secret",
+			tokenString: validToken,
+			tokenSecret: invalidSecret,
+			wantUserID:  uuid.Nil,
+			wantErr:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			_, err := ValidateJWT(tt.token, tt.validationSecret)
+			gotUserID, err := ValidateJWT(tt.tokenString, tt.tokenSecret)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateJWT() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotUserID != tt.wantUserID {
+				t.Errorf("ValidateJWT() gotUserID = %v, want %v", gotUserID, tt.wantUserID)
 			}
 		})
 	}
