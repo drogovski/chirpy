@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (ac *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+func (ac *apiConfig) handlerChirpsDelete(w http.ResponseWriter, r *http.Request) {
 	accessToken, err := auth.GetBearerToken(r.Header)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Couldn't find token", err)
@@ -35,7 +35,7 @@ func (ac *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if chirp.UserID != userID {
-		respondWithError(w, http.StatusForbidden, "You don't have access to this resource", err)
+		respondWithError(w, http.StatusForbidden, "You cannot delete this resource", err)
 		return
 	}
 

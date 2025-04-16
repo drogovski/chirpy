@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/drogovski/chirpy/internal/auth"
@@ -22,7 +24,7 @@ func (ac *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
 	params := parameters{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't decoded request parameters", err)
+		respondWithError(w, http.StatusInternalServerError, "Couldn't decode request parameters", err)
 		return
 	}
 
@@ -38,7 +40,7 @@ func (ac *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
 func (ac *apiConfig) handleUserUpgrade(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
 	apiKey, err := auth.GetAPIKey(r.Header)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, err.Error(), err)
+		respondWithError(w, http.StatusUnauthorized, "Couldn't find api key", err)
 		return
 	}
 
@@ -48,9 +50,13 @@ func (ac *apiConfig) handleUserUpgrade(w http.ResponseWriter, r *http.Request, u
 	}
 
 	q := database.New(ac.db)
-	err = q.UpgradeToChirpyRed(r.Context(), userID)
+	_, err = q.UpgradeToChirpyRed(r.Context(), userID)
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "Couldn't find user to upgrade", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, "Couldn't find user", err)
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Couldn't update user", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

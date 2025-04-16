@@ -115,7 +115,7 @@ func GetAPIKey(headers http.Header) (string, error) {
 	}
 
 	if !strings.HasPrefix(authorization, prefix) {
-		return "", errors.New("provided ApiKey has wrong format")
+		return "", errors.New("provided ApiKey has wrong format: ApiKey <key>")
 	}
 
 	splitted := strings.Fields(authorization)
