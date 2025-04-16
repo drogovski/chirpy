@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/drogovski/chirpy/internal/auth"
 	"github.com/drogovski/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -35,8 +36,19 @@ func (ac *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ac *apiConfig) handleUserUpgrade(w http.ResponseWriter, r *http.Request, userID uuid.UUID) {
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error(), err)
+		return
+	}
+
+	if apiKey != ac.polkaKey {
+		respondWithError(w, http.StatusUnauthorized, "Provided api key is incorrect", err)
+		return
+	}
+
 	q := database.New(ac.db)
-	err := q.UpgradeToChirpyRed(r.Context(), userID)
+	err = q.UpgradeToChirpyRed(r.Context(), userID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Couldn't find user to upgrade", err)
 		return
