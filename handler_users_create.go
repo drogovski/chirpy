@@ -59,7 +59,7 @@ func (ac *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) 
 			CreatedAt:   user.CreatedAt,
 			UpdatedAt:   user.UpdatedAt,
 			Email:       user.Email,
-			IsChirpyRed: user.IsChirpyRed.Bool,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 	})
 }

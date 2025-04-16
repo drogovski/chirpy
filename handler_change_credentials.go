@@ -61,7 +61,7 @@ func (ac *apiConfig) handlerChangeCredentials(w http.ResponseWriter, r *http.Req
 			CreatedAt:   updatedUser.CreatedAt,
 			UpdatedAt:   updatedUser.UpdatedAt,
 			Email:       updatedUser.Email,
-			IsChirpyRed: updatedUser.IsChirpyRed.Bool,
+			IsChirpyRed: updatedUser.IsChirpyRed,
 		},
 	})
 }
